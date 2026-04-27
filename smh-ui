@@ -1,128 +1,94 @@
--- [[ XENO EXECUTOR - MANUAL FARM HUB WITH BYPASS ]] --
+-- [[ XENO EXECUTOR - SILENT FAST M1 & DRAGON TALON FIX ]] --
 
 local player = game.Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
 
--- Global Değişkenler
-_G.FarmLevel = false
-_G.AutoM1 = false
-_G.Noclip = true
+_G.AutoFarm = true
+_G.FastM1 = true
 
--- 1. GUI TASARIMI (Xeno Temalı)
-local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "XenoManualHub"
-
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 220, 0, 300)
-main.Position = UDim2.new(0.05, 0, 0.4, 0)
-main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-
-local corner = Instance.new("UICorner", main)
-corner.CornerRadius = UDim.new(0, 10)
-
-local title = Instance.new("TextLabel", main)
-title.Text = "XENO HUB | BLOX FRUITS"
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(120, 45, 200)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
-
--- 2. YARDIMCI FONKSİYONLAR (Bypass TP)
-local function bypassTP(targetCFrame)
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        local dist = (player.Character.HumanoidRootPart.Position - targetCFrame.Position).Magnitude
-        local speed = 280 -- Güvenli Bypass Hızı
-        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(player.Character.HumanoidRootPart, info, {CFrame = targetCFrame})
-        tween:Play()
-        return tween
-    end
-end
-
--- 3. BUTON OLUŞTURUCU
-local function createToggle(name, pos, varName)
-    local btn = Instance.new("TextButton", main)
-    btn.Text = name .. ": OFF"
-    btn.Size = UDim2.new(0, 200, 0, 45)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.Gotham
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-
-    btn.MouseButton1Click:Connect(function()
-        _G[varName] = not _G[varName]
-        btn.Text = name .. ": " .. (_G[varName] and "ON" or "OFF")
-        btn.BackgroundColor3 = _G[varName] and Color3.fromRGB(100, 40, 180) or Color3.fromRGB(40, 40, 50)
-    end)
-end
-
--- Butonları Ekle
-createToggle("Auto Farm Level", UDim2.new(0, 10, 0, 50), "FarmLevel")
-createToggle("Fast Auto M1", UDim2.new(0, 10, 0, 105), "AutoM1")
-createToggle("Bypass Noclip", UDim2.new(0, 10, 0, 160), "Noclip")
-
--- 4. ANA DÖNGÜLER
-
--- Auto M1 (Saldırı)
+-- 1. GELİŞMİŞ M1 SİSTEMİ (Vuruş Gözükmez ve Tüm Stillerde Çalışır)
 spawn(function()
     while task.wait() do
-        if _G.AutoM1 then
+        if _G.FastM1 and _G.AutoFarm then
             pcall(function()
-                local tool = player.Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    tool:Activate()
-                else
-                    -- Silahı otomatik kuşan
-                    local weapon = player.Backpack:FindFirstChildOfClass("Tool")
-                    if weapon then weapon.Parent = player.Character end
-                end
-            end)
-        end
-    end
-end)
-
--- Auto Farm (En Yakın Düşmana TP)
-spawn(function()
-    while task.wait(0.1) do
-        if _G.FarmLevel then
-            pcall(function()
-                local target = nil
-                local dist = math.huge
+                local char = player.Character
+                local tool = char:FindFirstChildOfClass("Tool")
                 
-                -- En yakın düşmanı tara
-                for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
-                    if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                        local d = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                        if d < dist then
-                            dist = d
-                            target = v
+                if tool then
+                    -- Dragon Talon vb. için Direct Click Simulation
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(851, 158)) -- Ekranın ortasına sanal tıklama
+                    
+                    -- Vuruşun 'Gözükmemesi' (Animasyon İptali)
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        -- Animasyonları anlık durdurarak vuruş efektini gizler
+                        for _, anim in pairs(humanoid:GetPlayingAnimationTracks()) do
+                            if anim.Name:lower():find("attack") or anim.Name:lower():find("slash") then
+                                anim:Stop()
+                            end
                         end
                     end
                 end
-
-                if target then
-                    -- Düşmanın 7 birim tepesinde dur (Bypass TP)
-                    bypassTP(target.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0))
-                end
             end)
         end
     end
 end)
 
--- Noclip (Duvarlardan Geçme)
+-- 2. BYPASS TWEEN TP (Hızı 350'ye Çıkardım)
+local function bypassTP(targetCFrame)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local root = player.Character.HumanoidRootPart
+        local dist = (root.Position - targetCFrame.Position).Magnitude
+        local speed = 350 -- Daha hızlı geçiş
+        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
+        game:GetService("TweenService"):Create(root, info, {CFrame = targetCFrame}):Play()
+    end
+end
+
+-- 3. ANA FARM DÖNGÜSÜ
+spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoFarm then
+            local target = nil
+            local dist = math.huge
+            
+            -- En yakın düşmanı bul (Menzil Kontrolü)
+            for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
+                if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                    local d = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                    if d < dist then
+                        dist = d
+                        target = v
+                    end
+                end
+            end
+
+            if target then
+                -- MESAFE AYARI: Dragon Talon için 5-6 birim idealdir
+                bypassTP(target.HumanoidRootPart.CFrame * CFrame.new(0, 6, 0))
+                
+                -- Silahı kontrol et
+                if not player.Character:FindFirstChildOfClass("Tool") then
+                    local weapon = player.Backpack:FindFirstChild("Dragon Talon") or 
+                                 player.Backpack:FindFirstChild("Combat") or 
+                                 player.Backpack:FindFirstChildOfClass("Tool")
+                    if weapon then weapon.Parent = player.Character end
+                end
+            end
+        end
+    end
+end)
+
+-- 4. NOCLIP & GÖRÜNMEZ VURUŞ DESTEĞİ
 RunService.Stepped:Connect(function()
-    if _G.Noclip and player.Character then
+    if _G.AutoFarm and player.Character then
         for _, v in pairs(player.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
 
-print("Xeno Hub Başarıyla Yüklendi!")
+print("Dragon Talon Fix & Silent M1 Loaded!")
