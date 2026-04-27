@@ -1,107 +1,128 @@
--- [[ XENO EXECUTOR - ADVANCED AUTO M1 & LEVEL FARM ]] --
+-- [[ XENO EXECUTOR - MANUAL FARM HUB WITH BYPASS ]] --
 
 local player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-_G.AutoFarm = true
-_G.FastAttack = true -- Auto M1 aktif
+-- Global Değişkenler
+_G.FarmLevel = false
+_G.AutoM1 = false
+_G.Noclip = true
 
--- 1. SEVİYE VERİ TABANI (Örnek)
-local QuestData = {
-    {Level = 0, QuestName = "BanditQuest1", MonsterName = "Bandit", NPCPos = Vector3.new(1059, 15, 1550)},
-    {Level = 10, QuestName = "MonkeyQuest1", MonsterName = "Monkey", NPCPos = Vector3.new(-1598, 35, 150)}
-}
+-- 1. GUI TASARIMI (Xeno Temalı)
+local sg = Instance.new("ScreenGui", player.PlayerGui)
+sg.Name = "XenoManualHub"
 
--- 2. AUTO M1 (FAST ATTACK) MEKANİZMASI
--- Animasyon beklemeden vuruş sinyali gönderir.
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 220, 0, 300)
+main.Position = UDim2.new(0.05, 0, 0.4, 0)
+main.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+
+local corner = Instance.new("UICorner", main)
+corner.CornerRadius = UDim.new(0, 10)
+
+local title = Instance.new("TextLabel", main)
+title.Text = "XENO HUB | BLOX FRUITS"
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(120, 45, 200)
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+
+-- 2. YARDIMCI FONKSİYONLAR (Bypass TP)
+local function bypassTP(targetCFrame)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local dist = (player.Character.HumanoidRootPart.Position - targetCFrame.Position).Magnitude
+        local speed = 280 -- Güvenli Bypass Hızı
+        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(player.Character.HumanoidRootPart, info, {CFrame = targetCFrame})
+        tween:Play()
+        return tween
+    end
+end
+
+-- 3. BUTON OLUŞTURUCU
+local function createToggle(name, pos, varName)
+    local btn = Instance.new("TextButton", main)
+    btn.Text = name .. ": OFF"
+    btn.Size = UDim2.new(0, 200, 0, 45)
+    btn.Position = pos
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.Gotham
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+
+    btn.MouseButton1Click:Connect(function()
+        _G[varName] = not _G[varName]
+        btn.Text = name .. ": " .. (_G[varName] and "ON" or "OFF")
+        btn.BackgroundColor3 = _G[varName] and Color3.fromRGB(100, 40, 180) or Color3.fromRGB(40, 40, 50)
+    end)
+end
+
+-- Butonları Ekle
+createToggle("Auto Farm Level", UDim2.new(0, 10, 0, 50), "FarmLevel")
+createToggle("Fast Auto M1", UDim2.new(0, 10, 0, 105), "AutoM1")
+createToggle("Bypass Noclip", UDim2.new(0, 10, 0, 160), "Noclip")
+
+-- 4. ANA DÖNGÜLER
+
+-- Auto M1 (Saldırı)
 spawn(function()
     while task.wait() do
-        if _G.AutoFarm and _G.FastAttack then
+        if _G.AutoM1 then
             pcall(function()
                 local tool = player.Character:FindFirstChildOfClass("Tool")
                 if tool then
-                    -- Standart tıklama yerine hızlı aktivasyon
                     tool:Activate()
-                    -- Bazı executorlarda M1 vuruşunu hızlandırmak için:
-                    -- game:GetService("VirtualUser"):CaptureController()
-                    -- game:GetService("VirtualUser"):ClickButton1(Vector2.new(851, 158), game.Workspace.CurrentCamera.CFrame)
+                else
+                    -- Silahı otomatik kuşan
+                    local weapon = player.Backpack:FindFirstChildOfClass("Tool")
+                    if weapon then weapon.Parent = player.Character end
                 end
             end)
         end
     end
 end)
 
--- 3. BYPASS TELEPORT (TWEEN)
-local function bypassTP(targetPos)
-    local char = player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local dist = (char.HumanoidRootPart.Position - targetPos).Magnitude
-        local speed = 300 -- Bypass için ideal hız
-        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
-        local tween = TweenService:Create(char.HumanoidRootPart, info, {CFrame = CFrame.new(targetPos)})
-        tween:Play()
-        return tween
-    end
-end
-
--- 4. ANA DÖNGÜ (QUEST & FARM)
+-- Auto Farm (En Yakın Düşmana TP)
 spawn(function()
-    while _G.AutoFarm do
-        local level = player.Data.Level.Value
-        local quest = QuestData[1]
-        
-        -- Mevcut seviyeye uygun görevi seç
-        for _, q in pairs(QuestData) do
-            if level >= q.Level then quest = q end
-        end
-        
-        -- GÖREV KONTROLÜ
-        local hasQuest = player.PlayerGui.Main:FindFirstChild("Quest").Visible
-        if not hasQuest then
-            bypassTP(quest.NPCPos)
-            task.wait(1)
-            -- Sunucuya görev alma isteği gönder (Blox Fruits Remote)
-            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", quest.QuestName, 1)
-        else
-            -- DÜŞMAN KONTROLÜ VE SALDIRI
-            local enemy = nil
-            for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
-                if v.Name == quest.MonsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                    enemy = v
-                    break
-                end
-            end
-            
-            if enemy then
-                local root = enemy:FindFirstChild("HumanoidRootPart")
-                if root then
-                    -- Düşmanın dibine değil, 6-7 birim üstüne/yanına git (Vuruş alanı için)
-                    bypassTP(root.Position + Vector3.new(0, 7, 0))
-                    
-                    -- Silah Kontrolü (Combat/Sword)
-                    if not player.Character:FindFirstChildOfClass("Tool") then
-                        local sword = player.Backpack:FindFirstChild("Combat") or player.Backpack:FindFirstChildOfClass("Tool")
-                        if sword then sword.Parent = player.Character end
+    while task.wait(0.1) do
+        if _G.FarmLevel then
+            pcall(function()
+                local target = nil
+                local dist = math.huge
+                
+                -- En yakın düşmanı tara
+                for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
+                    if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        local d = (player.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+                        if d < dist then
+                            dist = d
+                            target = v
+                        end
                     end
                 end
-            else
-                -- Düşman yoksa spawn noktasına git
-                bypassTP(quest.NPCPos + Vector3.new(0, 50, 0))
-            end
+
+                if target then
+                    -- Düşmanın 7 birim tepesinde dur (Bypass TP)
+                    bypassTP(target.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0))
+                end
+            end)
         end
-        task.wait(0.1)
     end
 end)
 
--- 5. NOCLIP (Duvarlardan Geçme)
+-- Noclip (Duvarlardan Geçme)
 RunService.Stepped:Connect(function()
-    if _G.AutoFarm and player.Character then
+    if _G.Noclip and player.Character then
         for _, v in pairs(player.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
 
-print("M1 Fast Attack & Auto Level Aktif!")
+print("Xeno Hub Başarıyla Yüklendi!")
