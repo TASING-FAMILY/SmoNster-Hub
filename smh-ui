@@ -1,100 +1,107 @@
--- [[ XENO EXECUTOR - BLOX FRUITS ALL-IN-ONE FARM ]] --
-
-if _G.FarmActive then _G.FarmActive = false end
-task.wait(0.5)
-_G.FarmActive = true
+-- [[ XENO EXECUTOR - ADVANCED AUTO M1 & LEVEL FARM ]] --
 
 local player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. GELİŞMİŞ TWEEN (IŞINLANMA) FONKSİYONU
--- Karakteri ban yemeden hızlıca hedefe kaydırır.
-local function toTarget(targetCFrame)
+_G.AutoFarm = true
+_G.FastAttack = true -- Auto M1 aktif
+
+-- 1. SEVİYE VERİ TABANI (Örnek)
+local QuestData = {
+    {Level = 0, QuestName = "BanditQuest1", MonsterName = "Bandit", NPCPos = Vector3.new(1059, 15, 1550)},
+    {Level = 10, QuestName = "MonkeyQuest1", MonsterName = "Monkey", NPCPos = Vector3.new(-1598, 35, 150)}
+}
+
+-- 2. AUTO M1 (FAST ATTACK) MEKANİZMASI
+-- Animasyon beklemeden vuruş sinyali gönderir.
+spawn(function()
+    while task.wait() do
+        if _G.AutoFarm and _G.FastAttack then
+            pcall(function()
+                local tool = player.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    -- Standart tıklama yerine hızlı aktivasyon
+                    tool:Activate()
+                    -- Bazı executorlarda M1 vuruşunu hızlandırmak için:
+                    -- game:GetService("VirtualUser"):CaptureController()
+                    -- game:GetService("VirtualUser"):ClickButton1(Vector2.new(851, 158), game.Workspace.CurrentCamera.CFrame)
+                end
+            end)
+        end
+    end
+end)
+
+-- 3. BYPASS TELEPORT (TWEEN)
+local function bypassTP(targetPos)
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
-        local distance = (char.HumanoidRootPart.Position - targetCFrame.Position).Magnitude
-        local speed = 80 -- Güvenli hız sınırı
-        local info = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-        
-        local tween = TweenService:Create(char.HumanoidRootPart, info, {CFrame = targetCFrame})
+        local dist = (char.HumanoidRootPart.Position - targetPos).Magnitude
+        local speed = 300 -- Bypass için ideal hız
+        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(char.HumanoidRootPart, info, {CFrame = CFrame.new(targetPos)})
         tween:Play()
         return tween
     end
 end
 
--- 2. GÖREV ALMA MANTIĞI (Örnek: Bandit Görevi)
--- Not: Gerçek scriptlerde bu kısım oyuncunun seviyesine göre dinamik değişir.
-local function getQuest(questName, npcPos)
-    -- NPC'nin yanına git
-    toTarget(npcPos)
-    task.wait(1)
-    -- Blox Fruits RemoteEvent'lerini kullanarak görevi onaylar
-    -- game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questName, 1)
-end
-
--- 3. ARAYÜZ TASARIMI
-local sg = Instance.new("ScreenGui", player.PlayerGui)
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 240, 0, 320)
-main.Position = UDim2.new(0.05, 0, 0.4, 0)
-main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-main.Draggable = true
-
-local title = Instance.new("TextLabel", main)
-title.Text = "BLOX FRUITS X-HUB"
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(80, 0, 150)
-title.TextColor3 = Color3.new(1, 1, 1)
-
--- 4. OTO FARM DÖNGÜSÜ
-local autoLevel = false
-local btn = Instance.new("TextButton", main)
-btn.Text = "AUTO LEVEL: OFF"
-btn.Size = UDim2.new(0, 220, 0, 50)
-btn.Position = UDim2.new(0, 10, 0, 50)
-btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-btn.TextColor3 = Color3.new(1, 1, 1)
-
-btn.MouseButton1Click:Connect(function()
-    autoLevel = not autoLevel
-    btn.Text = "AUTO LEVEL: " .. (autoLevel and "ON" or "OFF")
-end)
-
--- ANA ÇALIŞTIRICI
+-- 4. ANA DÖNGÜ (QUEST & FARM)
 spawn(function()
-    while _G.FarmActive do
-        if autoLevel then
-            -- 1. Adım: En yakın düşmanı bul
-            local target = nil
+    while _G.AutoFarm do
+        local level = player.Data.Level.Value
+        local quest = QuestData[1]
+        
+        -- Mevcut seviyeye uygun görevi seç
+        for _, q in pairs(QuestData) do
+            if level >= q.Level then quest = q end
+        end
+        
+        -- GÖREV KONTROLÜ
+        local hasQuest = player.PlayerGui.Main:FindFirstChild("Quest").Visible
+        if not hasQuest then
+            bypassTP(quest.NPCPos)
+            task.wait(1)
+            -- Sunucuya görev alma isteği gönder (Blox Fruits Remote)
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", quest.QuestName, 1)
+        else
+            -- DÜŞMAN KONTROLÜ VE SALDIRI
+            local enemy = nil
             for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
-                if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                    target = v
+                if v.Name == quest.MonsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                    enemy = v
                     break
                 end
             end
             
-            if target then
-                -- 2. Adım: Düşmanın üstüne git ve saldır
-                local enemyPart = target:FindFirstChild("HumanoidRootPart")
-                if enemyPart then
-                    -- Düşmanın 10 birim üzerinde dur (Vurulmamak için)
-                    toTarget(enemyPart.CFrame * CFrame.new(0, 10, 0))
+            if enemy then
+                local root = enemy:FindFirstChild("HumanoidRootPart")
+                if root then
+                    -- Düşmanın dibine değil, 6-7 birim üstüne/yanına git (Vuruş alanı için)
+                    bypassTP(root.Position + Vector3.new(0, 7, 0))
                     
-                    -- Dövüş stiliyle vur
-                    local tool = player.Character:FindFirstChildOfClass("Tool")
-                    if tool then 
-                        tool:Activate() 
-                    else
-                        -- Envanterden silahı otomatik çek
-                        local combat = player.Backpack:FindFirstChild("Combat") or player.Backpack:FindFirstChildOfClass("Tool")
-                        if combat then combat.Parent = player.Character end
+                    -- Silah Kontrolü (Combat/Sword)
+                    if not player.Character:FindFirstChildOfClass("Tool") then
+                        local sword = player.Backpack:FindFirstChild("Combat") or player.Backpack:FindFirstChildOfClass("Tool")
+                        if sword then sword.Parent = player.Character end
                     end
                 end
             else
-                -- Düşman yoksa görev bölgesine veya spawn noktasına git
-                print("Düşman aranıyor...")
+                -- Düşman yoksa spawn noktasına git
+                bypassTP(quest.NPCPos + Vector3.new(0, 50, 0))
             end
         end
         task.wait(0.1)
     end
 end)
+
+-- 5. NOCLIP (Duvarlardan Geçme)
+RunService.Stepped:Connect(function()
+    if _G.AutoFarm and player.Character then
+        for _, v in pairs(player.Character:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = false end
+        end
+    end
+end)
+
+print("M1 Fast Attack & Auto Level Aktif!")
