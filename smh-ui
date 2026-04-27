@@ -1,96 +1,105 @@
--- [[ XENO EXECUTOR - ULTIMATE SILENT HUB ]] --
+-- [[ XENO EXECUTOR - BUG FIXED & OPTIMIZED HUB ]] --
 
 local player = game.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser = game:GetService("VirtualUser")
 
 _G.AutoFarm = false
 _G.SilentM1 = false
 
--- 1. GUI OLUŞTURMA
+-- 1. GUI TASARIMI
 local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "XenoSilentHub"
+sg.Name = "XenoFixHub"
 
 local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 220, 0, 250)
+main.Size = UDim2.new(0, 230, 0, 260)
 main.Position = UDim2.new(0.05, 0, 0.4, 0)
-main.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 main.Active = true
 main.Draggable = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
 local title = Instance.new("TextLabel", main)
-title.Text = "XENO | SILENT HUB"
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(110, 30, 180)
+title.Text = "XENO FIX | SILENT"
+title.Size = UDim2.new(1, 0, 0, 45)
+title.BackgroundColor3 = Color3.fromRGB(90, 20, 160)
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
-Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
--- 2. BUTON OLUŞTURUCU
+-- 2. BUTON SİSTEMİ
 local function createToggle(name, pos, varName)
     local btn = Instance.new("TextButton", main)
-    btn.Text = name .. ": OFF"
-    btn.Size = UDim2.new(0, 200, 0, 45)
+    btn.Text = name .. ": KAPALI"
+    btn.Size = UDim2.new(0, 210, 0, 50)
     btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.Gotham
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
 
     btn.MouseButton1Click:Connect(function()
         _G[varName] = not _G[varName]
-        btn.Text = name .. ": " .. (_G[varName] and "ON" or "OFF")
-        btn.BackgroundColor3 = _G[varName] and Color3.fromRGB(110, 30, 180) or Color3.fromRGB(35, 35, 45)
+        btn.Text = name .. ": " .. (_G[varName] and "AÇIK" or "KAPALI")
+        btn.BackgroundColor3 = _G[varName] and Color3.fromRGB(90, 20, 160) or Color3.fromRGB(30, 30, 40)
     end)
 end
 
-createToggle("Auto Farm (Overhead)", UDim2.new(0, 10, 0, 50), "AutoFarm")
-createToggle("Silent M1 (No Anim)", UDim2.new(0, 10, 0, 105), "SilentM1")
+createToggle("Oto Farm (Üstten)", UDim2.new(0, 10, 0, 60), "AutoFarm")
+createToggle("Sessiz Vuruş (Fix)", UDim2.new(0, 10, 0, 120), "SilentM1")
 
--- 3. BYPASS TP SİSTEMİ (NPC Üstü)
-local function bypassTP(targetCFrame)
-    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if root then
-        local dist = (root.Position - targetCFrame.Position).Magnitude
-        local speed = 300 
-        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
-        TweenService:Create(root, info, {CFrame = targetCFrame}):Play()
-    end
-end
-
--- 4. ULTRA SILENT M1 & DRAGON TALON FIX
+-- 3. HATA GİDERİLMİŞ VURUŞ SİSTEMİ (Dragon Talon & M1 Fix)
 spawn(function()
     while task.wait() do
         if _G.SilentM1 and _G.AutoFarm then
             pcall(function()
                 local char = player.Character
                 local tool = char:FindFirstChildOfClass("Tool")
+                
                 if tool then
-                    -- Dragon Talon ve tüm stilleri tetikleyen sanal tıklama
+                    -- 1. Yöntem: Sanal Tıklama
                     VirtualUser:CaptureController()
                     VirtualUser:ClickButton1(Vector2.new(9e9, 9e9))
                     
-                    -- Animasyonları Gizle
+                    -- 2. Yöntem: Blox Fruits Attack Remote (Sinyali Doğrular)
+                    -- Bu kısım hasarın kesin gitmesini sağlar
+                    local args = { [1] = 0.1 } -- Vuruş gücü/zamanlaması
+                    ReplicatedStorage.Remotes.Validator:FireServer(unpack(args))
+                    
+                    -- Animasyon Gizleme (Hafif Gecikmeli - Vuruş Kaybolmasın Diye)
                     local hum = char:FindFirstChildOfClass("Humanoid")
                     if hum then
-                        for _, track in pairs(hum:GetPlayingAnimationTracks()) do
-                            track:Stop(0)
-                        end
+                        task.spawn(function()
+                            task.wait(0.05) -- Sunucunun vuruşu algılaması için mini bekleme
+                            for _, track in pairs(hum:GetPlayingAnimationTracks()) do
+                                track:Stop(0)
+                            end
+                        end)
                     end
                     
-                    -- Vuruş Efektlerini Sil
+                    -- Efekt Temizliği
                     for _, v in pairs(char:GetChildren()) do
-                        if v:IsA("Part") or v:IsA("MeshPart") then
-                            if v.Name:find("Effect") or v.Name:find("Slash") then v:Destroy() end
-                        end
+                        if v.Name:find("Effect") or v.Name:find("Slash") then v:Destroy() end
                     end
                 end
             end)
         end
     end
 end)
+
+-- 4. BYPASS TP (Yükseklik Fix: 9 Birim)
+-- 11 birim bazen çok uzak kalabiliyor, 9 birim en dengelisidir.
+local function bypassTP(targetCFrame)
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local dist = (root.Position - targetCFrame.Position).Magnitude
+        local speed = 320 
+        local info = TweenInfo.new(dist / speed, Enum.EasingStyle.Linear)
+        TweenService:Create(root, info, {CFrame = targetCFrame}):Play()
+    end
+end
 
 -- 5. FARM DÖNGÜSÜ
 spawn(function()
@@ -106,10 +115,10 @@ spawn(function()
             end
 
             if target and target:FindFirstChild("HumanoidRootPart") then
-                -- NPC'lerin 11 birim yukarısında konumlan (Bypass TP)
-                bypassTP(target.HumanoidRootPart.CFrame * CFrame.new(0, 11, 0))
+                -- Düşmanın 9 birim yukarısına TP ol
+                bypassTP(target.HumanoidRootPart.CFrame * CFrame.new(0, 9, 0))
                 
-                -- Silahı otomatik eline al
+                -- Silahı kuşan
                 if not player.Character:FindFirstChildOfClass("Tool") then
                     local weapon = player.Backpack:FindFirstChildOfClass("Tool")
                     if weapon then weapon.Parent = player.Character end
@@ -119,7 +128,7 @@ spawn(function()
     end
 end)
 
--- 6. NOCLIP (Duvarlardan Geçme)
+-- 6. NOCLIP (Sabit Aktif)
 RunService.Stepped:Connect(function()
     if _G.AutoFarm and player.Character then
         for _, v in pairs(player.Character:GetDescendants()) do
@@ -128,4 +137,4 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-print("Xeno Ultimate Hub Loaded!")
+print("Xeno Bug-Fix Hub Başarıyla Yüklendi!")
